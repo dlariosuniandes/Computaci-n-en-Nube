@@ -1,7 +1,9 @@
 import os
-from models import Tarea
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+from models import Tarea, Usuario
 from aws import *
-
+from config import EMAIL_ON
 
 def get_file(task):
     file_name = '{0}.{1}'.format(task.nombre, task.inputformat)
@@ -15,9 +17,24 @@ def convert_file(task):
 
 
 def change_state(task):
+    usuario: Usuario=Usuario.get_by_id(task.usuario_task)
     task: Tarea = Tarea.get_by_id(task.id)
     task.estado = 'processed'
     task.save()
+    if EMAIL_ON == 'ON' :
+        message = Mail(
+            from_email='jc.nieto@uniandes.edu.co',
+            to_emails=usuario.email,
+            subject='Archivo ID: {}'.format(task.id),
+            html_content='<strong>El archivo solicitado ha sido procesado</strong>')
+        try:
+            sg = SendGridAPIClient(os.environ.get('APIKeyEmail'))
+            response = sg.send(message)
+            print(response.status_code)
+            print(response.body)
+            print(response.headers)
+        except Exception as e:
+            print(e.message)
 
 
 def delete_local_files(task):
